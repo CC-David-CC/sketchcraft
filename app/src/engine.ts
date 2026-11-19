@@ -1,3 +1,5 @@
+import { hosted } from "./webos-mode";
+import { accountScene, consumeAgentEdit, executeModel } from "./webos-account";
 // Thin bridge to the Rust engine. The UI never edits geometry itself: every
 // change is an engine command, exactly what scripts and Claude send.
 //
@@ -250,7 +252,7 @@ async function http<T>(path: string, body?: unknown, retry = true): Promise<T> {
 }
 
 /** Run an engine command as the person using the app. */
-export const exec = (cmd: Record<string, unknown>) => (inTauri ? invoke<Reply>("exec", { cmd }) : http<Reply>("/exec", cmd));
+export const exec = (cmd: Record<string, unknown>) => (hosted ? Promise.resolve(executeModel(cmd, "ui")) : inTauri ? invoke<Reply>("exec", { cmd }) : http<Reply>("/exec", cmd));
 /**
  * Run an engine command that plugin code asked for (JavaScript or SketchUp
  * Ruby). The engine only lets these model: no files, programs, network or
@@ -258,9 +260,9 @@ export const exec = (cmd: Record<string, unknown>) => (inTauri ? invoke<Reply>("
  * through here, never through `exec`.
  */
 export const execPlugin = (cmd: Record<string, unknown>, plugin?: string) =>
-  inTauri ? invoke<Reply>("exec", { cmd, source: "plugin", plugin: plugin ?? null }) : http<Reply>(`/exec?as=plugin${plugin ? `&plugin=${encodeURIComponent(plugin.slice(0, 80))}` : ""}`, cmd);
-export const loadScene = () => (inTauri ? invoke<Scene>("scene") : http<Scene>("/scene"));
-export const sync = () => (inTauri ? invoke<boolean>("sync") : http<boolean>("/sync"));
+  hosted ? Promise.resolve(executeModel(cmd, "plugin", plugin)) : inTauri ? invoke<Reply>("exec", { cmd, source: "plugin", plugin: plugin ?? null }) : http<Reply>(`/exec?as=plugin${plugin ? `&plugin=${encodeURIComponent(plugin.slice(0, 80))}` : ""}`, cmd);
+export const loadScene = () => (hosted ? Promise.resolve(accountScene()) : inTauri ? invoke<Scene>("scene") : http<Scene>("/scene"));
+export const sync = () => (hosted ? Promise.resolve(consumeAgentEdit()) : inTauri ? invoke<boolean>("sync") : http<boolean>("/sync"));
 
 /** The built-in library. `figure`: a scale figure (people, cyclists, flat cars), listed on its own. */
 export const ASSETS: readonly { key: string; name: string; figure?: boolean }[] = [

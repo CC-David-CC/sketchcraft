@@ -1,3 +1,4 @@
+import { preferences } from "./webos-mode";
 // Skins: how the app looks. A skin is a set of color tokens (the CSS
 // variables every panel uses), a corner radius, a font, and optionally a
 // suggested model backdrop. Built-ins live here; your own are saved as
@@ -198,14 +199,14 @@ export function isDark(color: string) {
 export const store = {
   get(key: string): string | null {
     try {
-      return localStorage.getItem(key);
+      return preferences().getItem(key);
     } catch {
       return null;
     }
   },
   set(key: string, v: string) {
     try {
-      localStorage.setItem(key, v);
+      preferences().setItem(key, v);
     } catch {
       /* private window: just not remembered */
     }

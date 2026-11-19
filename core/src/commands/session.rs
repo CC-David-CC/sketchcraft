@@ -10,7 +10,7 @@ impl Engine {
                 if self.batch.is_some() {
                     self.end_batch();
                 }
-                self.batch = Some((self.model.clone(), self.revision, std::time::Instant::now()));
+                self.batch = Some((self.model.clone(), self.revision, web_time::Instant::now()));
                 self.batch_seq += 1;
                 json!({"batch": self.batch_seq})
             }

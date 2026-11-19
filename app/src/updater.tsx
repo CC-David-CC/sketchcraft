@@ -1,3 +1,4 @@
+import { preferences } from "./webos-mode";
 // Signed self-updates. A few seconds after launch (and every six hours) the
 // desktop app reads latest-v2.json from the newest GitHub release (older installs read latest.json: docs/SIGNING.md, "Key rotation"); Tauri checks
 // each download against the public key in tauri.conf.json before installing.
@@ -28,7 +29,7 @@ type Card =
 
 const snoozed = (v: string) => {
   try {
-    return localStorage.getItem(SNOOZE_KEY) === v;
+    return preferences().getItem(SNOOZE_KEY) === v;
   } catch {
     return false;
   }
@@ -99,7 +100,7 @@ export function UpdateCard() {
   const close = () => {
     if (card.kind === "ready") {
       try {
-        localStorage.setItem(SNOOZE_KEY, card.update.version);
+        preferences().setItem(SNOOZE_KEY, card.update.version);
       } catch {}
     }
     setNotes(false);

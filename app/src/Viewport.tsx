@@ -1,3 +1,5 @@
+import { hosted } from "./webos-mode";
+import { watchViewportEdit } from "./webos-account";
 // The 3D view. Draws the engine's scene with three.js and turns mouse and
 // keyboard input into engine commands. Z is up, units are meters.
 import { useEffect, useRef, useState } from "react";
@@ -290,8 +292,10 @@ export default function Viewport(props: Props) {
     ro.observe(el);
     resize();
 
+    const edit = hosted ? watchViewportEdit(() => st.current.op !== null) : null;
     let raf = 0;
     const loop = () => {
+      edit?.changed();
       controls.update();
       const cam = t.current!.camera;
       if (live.current.styles.ao) {
@@ -320,6 +324,7 @@ export default function Viewport(props: Props) {
     };
     loop();
     return () => {
+      edit?.dispose();
       cancelAnimationFrame(raf);
       ro.disconnect();
       controls.dispose();

@@ -1,3 +1,4 @@
+import { preferences } from "./webos-mode";
 // SketchUp Ruby scripts in SketchCraft: compile with Opal (vendored in
 // public/ruby), run against the API in ruby/sketchup.rb, and hand back the
 // SketchCraft commands they recorded. Both steps run in sandboxed workers (no
@@ -76,8 +77,8 @@ async function sha256(s: string): Promise<string> {
 function dropOldCache() {
   try {
     const keys: { k: string; t: number }[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
+    for (let i = 0; i < preferences().length; i++) {
+      const k = preferences().key(i);
       if (!k?.startsWith("sketchcraft.rubyjs.")) continue;
       // other Opal versions' entries are never used again
       if (!k.startsWith(CACHE_PREFIX)) {
@@ -86,14 +87,14 @@ function dropOldCache() {
       }
       let t = 0;
       try {
-        t = JSON.parse(localStorage.getItem(k) ?? "{}").t ?? 0;
+        t = JSON.parse(preferences().getItem(k) ?? "{}").t ?? 0;
       } catch {
         /* unreadable: oldest */
       }
       keys.push({ k, t });
     }
     keys.sort((a, b) => a.t - b.t);
-    for (const { k } of keys.slice(0, Math.max(0, keys.length - CACHE_MAX))) localStorage.removeItem(k);
+    for (const { k } of keys.slice(0, Math.max(0, keys.length - CACHE_MAX))) preferences().removeItem(k);
   } catch {
     /* no storage */
   }
@@ -103,11 +104,11 @@ async function cachedCompile(files: Record<string, string>): Promise<{ js?: stri
   let key = "";
   try {
     key = CACHE_PREFIX + (await sha256(JSON.stringify(files)));
-    const raw = localStorage.getItem(key);
+    const raw = preferences().getItem(key);
     if (raw) {
       const hit = JSON.parse(raw) as { js?: string; h?: string };
       if (typeof hit.js === "string" && typeof hit.h === "string" && (await sha256(hit.js)) === hit.h) return { js: hit.js };
-      localStorage.removeItem(key); // doesn't match its own hash: not trusted
+      preferences().removeItem(key); // doesn't match its own hash: not trusted
     }
   } catch {
     /* no storage or no crypto: compile every time */
@@ -115,7 +116,7 @@ async function cachedCompile(files: Record<string, string>): Promise<{ js?: stri
   const r = await compile(files);
   if (r.js && key) {
     try {
-      localStorage.setItem(key, JSON.stringify({ js: r.js, h: await sha256(r.js), t: Date.now() }));
+      preferences().setItem(key, JSON.stringify({ js: r.js, h: await sha256(r.js), t: Date.now() }));
       dropOldCache();
     } catch {
       /* full: fine, it compiles again next time */

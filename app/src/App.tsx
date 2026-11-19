@@ -1,3 +1,5 @@
+import { accountPath } from "./webos-account";
+import { hosted, preferences } from "./webos-mode";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { UpdateCard, checkForUpdatesNow } from "./updater";
 import { ask, AskHost } from "./ask";
@@ -133,7 +135,7 @@ export default function App() {
   const [styles, setStyles] = useState<Styles>(() => {
     let help = true;
     try {
-      help = localStorage.getItem("sketchcraft.help") !== "off";
+      help = preferences().getItem("sketchcraft.help") !== "off";
     } catch {
       /* private window: help stays on */
     }
@@ -142,7 +144,7 @@ export default function App() {
   // help on or off is remembered
   useEffect(() => {
     try {
-      localStorage.setItem("sketchcraft.help", styles.help === false ? "off" : "on");
+      preferences().setItem("sketchcraft.help", styles.help === false ? "off" : "on");
     } catch {
       /* not saved: fine */
     }
@@ -180,7 +182,7 @@ export default function App() {
   const setBuild = (b: BuildSettings) => {
     setBuildState(b);
     try {
-      localStorage.setItem("sketchcraft.build", JSON.stringify(b));
+      preferences().setItem("sketchcraft.build", JSON.stringify(b));
     } catch {
       /* settings just won't persist */
     }
@@ -192,10 +194,10 @@ export default function App() {
   const setFigure = (f: FigureChoice) => {
     setFigureRaw(f);
     try {
-      localStorage.setItem("sketchcraft.figure", f);
+      preferences().setItem("sketchcraft.figure", f);
     } catch {}
   };
-  const [currentFile, setCurrentFileState] = useState<string | null>(rememberedFile());
+  const [currentFile, setCurrentFileState] = useState<string | null>(hosted ? accountPath() : rememberedFile());
   const setCurrentFile = (p: string | null) => {
     setCurrentFileState(p);
     rememberFile(p);
@@ -240,6 +242,18 @@ export default function App() {
     setToast({ text, bad, undo });
     window.setTimeout(() => setToast((t) => (t?.text === text ? null : t)), undo ? 9000 : bad && text.length > 120 ? 9000 : 3600);
   }, []);
+
+  useEffect(() => {
+    if (!hosted) return;
+    const updatePath = () => setCurrentFileState(accountPath());
+    const notice = (event: Event) => say((event as CustomEvent<string>).detail);
+    window.addEventListener("webos-model-path", updatePath);
+    window.addEventListener("webos-model-notice", notice);
+    return () => {
+      window.removeEventListener("webos-model-path", updatePath);
+      window.removeEventListener("webos-model-notice", notice);
+    };
+  }, [say]);
 
   const refresh = useCallback(async () => setScene(await loadScene()), []);
 

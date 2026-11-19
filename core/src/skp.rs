@@ -899,7 +899,7 @@ fn gave_up() -> bool {
 // How long one file may take: a damaged file sends the look-ahead searching
 // everywhere, so the whole parse has a deadline (real files take well under a second).
 thread_local! {
-    static DEADLINE: std::cell::Cell<Option<std::time::Instant>> = const { std::cell::Cell::new(None) };
+    static DEADLINE: std::cell::Cell<Option<web_time::Instant>> = const { std::cell::Cell::new(None) };
 }
 
 /// The look-ahead attempts one file may make in all (real files use under a
@@ -912,7 +912,7 @@ thread_local! {
 }
 
 pub(crate) fn out_of_time() -> bool {
-    DEADLINE.with(|d| d.get().is_some_and(|t| std::time::Instant::now() > t))
+    DEADLINE.with(|d| d.get().is_some_and(|t| web_time::Instant::now() > t))
 }
 
 /// Parse `n` list items. When an item can't be decoded (a dimension, a text
@@ -1016,7 +1016,7 @@ pub fn parse(d: &[u8]) -> Result<SkpFile> {
     let newf = major >= 17;
     // How long the whole read may take, either kind of file: 4 s, plus 4 s per megabyte, never more than 30 s.
     let allowed = std::time::Duration::from_millis((4000 + (d.len() as u64 * 4000 >> 20)).min(30_000));
-    let deadline = std::time::Instant::now() + allowed;
+    let deadline = web_time::Instant::now() + allowed;
     DEADLINE.with(|c| c.set(Some(deadline)));
     WORK.with(|w| w.set(0));
     PROBED.with(|w| w.set(0));

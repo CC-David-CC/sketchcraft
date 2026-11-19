@@ -1,3 +1,5 @@
+import { fileAction } from "./webos-account";
+import { hosted, preferences } from "./webos-mode";
 // File actions: New, Open, Save, the imports and the exports. Each runs engine commands and
 // says what happened.
 import type { RefObject } from "react";
@@ -12,7 +14,7 @@ export type FigureChoice = "person" | "beaver" | "none";
 
 export function readFigure(): FigureChoice {
   try {
-    const v = localStorage.getItem("sketchcraft.figure");
+    const v = preferences().getItem("sketchcraft.figure");
     if (v === "person" || v === "beaver" || v === "none") return v;
   } catch {}
   return "person";
@@ -143,12 +145,14 @@ export function useFileActions({ run, say, refresh, api, scene, figure, currentF
 
   const file = {
     new: async () => {
+      if (hosted) return fileAction("new");
       await run({ cmd: "new", figure: figureToday(figure) });
       setCurrentFile(null);
       setSel(EMPTY);
       say("New model. ⌘Z brings the last one back.");
     },
     open: async () => {
+      if (hosted) return fileAction("open");
       const path = await pickOpen();
       if (!path) return;
       if (path.toLowerCase().endsWith(".sketchcraft")) {
@@ -164,6 +168,7 @@ export function useFileActions({ run, say, refresh, api, scene, figure, currentF
       setSel(EMPTY);
     },
     save: async (as = false) => {
+      if (hosted) return fileAction(as ? "saveAs" : "save");
       // a remembered path is checked again here: it only ever names a .sketchcraft file
       let path = isModelPath(currentFile) ? currentFile : null;
       if (!path || as) {

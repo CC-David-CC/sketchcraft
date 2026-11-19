@@ -157,7 +157,7 @@ impl Model {
     pub fn text_3d(&mut self, rings: &[Vec<[f64; 2]>], at: DVec3, right: DVec3, up: DVec3, depth: f64) -> Result<Vec<Id>> {
         // one limit for the whole job, checked inside the drawing, nesting, cutting and pulling steps
         let before = self.deadline;
-        self.deadline = Some(std::time::Instant::now() + TEXT_3D_SECONDS);
+        self.deadline = Some(web_time::Instant::now() + TEXT_3D_SECONDS);
         let r = self.text_3d_inner(rings, at, right, up, depth);
         self.deadline = before;
         r.map_err(|e| if self.over_deadline_msg(&e) { anyhow::anyhow!("that text took more than {} seconds to build, so it was stopped (use fewer or simpler outlines, or a smaller model)", TEXT_3D_SECONDS.as_secs()) } else { e })

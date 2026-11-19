@@ -328,7 +328,7 @@ pub struct Model {
     /// A time limit for the work in progress (never saved): set by a command that can be slow on a big model,
     /// checked inside the expensive loops (`over_deadline`), so the limit holds end to end.
     #[serde(skip)]
-    pub deadline: Option<std::time::Instant>,
+    pub deadline: Option<web_time::Instant>,
     /// Ids an operation moved or split, for anchors on sheets to follow (never saved; `Engine::exec` settles and clears it)
     #[serde(skip)]
     pub remaps: Vec<crate::anchors::Remap>,
@@ -608,7 +608,7 @@ impl Model {
 
     /// True once the deadline set by the command in progress has passed.
     pub fn over_deadline(&self) -> bool {
-        self.deadline.is_some_and(|d| std::time::Instant::now() >= d)
+        self.deadline.is_some_and(|d| web_time::Instant::now() >= d)
     }
 
     /// An error once the deadline has passed (see `deadline`).
@@ -1426,8 +1426,8 @@ pub const MAX_ENTITIES: usize = 2_000_000;
 /// image is in it). The person's models may go up to `MAX_MODEL_BYTES`; the file of such a model is always under
 /// `commands::MAX_OPEN_BYTES`, so a model the program wrote can be opened again. An agent or a plugin may add at most
 /// `MAX_GROWTH_BYTES_UNTRUSTED` in one command and may not take a model past `MAX_MODEL_BYTES_UNTRUSTED` in all.
-pub const MAX_MODEL_BYTES: usize = 512 << 20;
-pub const MAX_MODEL_BYTES_UNTRUSTED: usize = 160 << 20;
+pub const MAX_MODEL_BYTES: usize = if cfg!(target_arch = "wasm32") { 32 << 20 } else { 512 << 20 };
+pub const MAX_MODEL_BYTES_UNTRUSTED: usize = if cfg!(target_arch = "wasm32") { 16 << 20 } else { 160 << 20 };
 pub const MAX_GROWTH_BYTES_UNTRUSTED: usize = 32 << 20;
 /// The most keys one component or placement may carry in its Dynamic Component attributes.
 pub const MAX_ATTRS: usize = 256;

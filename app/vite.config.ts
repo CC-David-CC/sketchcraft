@@ -9,11 +9,12 @@ const env = (globalThis as { process?: { env: Record<string, string | undefined>
 const PORT = Number(env.SKETCHCRAFT_DEV_PORT ?? 5174);
 const BRIDGE_PORT = Number(env.VITE_BRIDGE_PORT ?? 5175);
 
-export default defineConfig({
+export default defineConfig(({mode}) => ({
+  build: mode === "webos" ? { license:{ fileName:"JS-LICENSES.txt" } } : {},
   plugins: [react(), bridgeToken(PORT), devCsp(PORT, BRIDGE_PORT)],
   // the app's version, shown in the File menu (kept equal to tauri.conf.json's)
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   clearScreen: false,
   // templates import ../examples from the repo root
   server: { port: PORT, strictPort: true, host: "127.0.0.1", fs: { allow: [".."] } },
-});
+}));

@@ -1,3 +1,4 @@
+import { preferences } from "./webos-mode";
 // The Render dialog: quality, size, sun and light settings, and the progressive render.
 import { useEffect, useRef, useState } from "react";
 import { exec } from "./engine";
@@ -43,7 +44,7 @@ function useRenderSettings() {
     setAdvRaw((a) => {
       const n = { ...a, ...patch };
       try {
-        localStorage.setItem("sketchcraft.render", JSON.stringify(n));
+        preferences().setItem("sketchcraft.render", JSON.stringify(n));
       } catch {}
       return n;
     });

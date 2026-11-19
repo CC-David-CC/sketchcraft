@@ -1,3 +1,4 @@
+import { hosted } from "./webos-mode";
 // The File menu in the top bar: files, exports, plugins, and the dialogs the rest of the app opens.
 import { useState, type RefObject } from "react";
 import { inTauri } from "./engine";
@@ -20,6 +21,7 @@ export function FileMenu({ file, section, plugins, livePlugins, setPlugins, runP
   /** the dialogs the menu opens, by what they are */
   open: { restore: () => void; plugins: () => void; sheets: () => void; timeline: () => void; location: () => void; text3d: () => void; keys: () => void; keyEditor: () => void };
 }) {
+  const standalone = hosted ? {disabled:true, title:"Available in standalone SketchCraft"} : {};
   const [fileMenu, setFileMenu] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
@@ -37,11 +39,12 @@ export function FileMenu({ file, section, plugins, livePlugins, setPlugins, runP
           <button onClick={file.open}>Open… <kbd>⌘O</kbd></button>
           <button onClick={() => file.save(false)}>Save <kbd>⌘S</kbd></button>
           <button onClick={() => file.save(true)}>Save As… <kbd>⇧⌘S</kbd></button>
-          <button onClick={() => open.restore()}>Restore from backup…</button>
+          <button {...standalone} onClick={() => open.restore()}>Restore from backup…</button>
           <hr />
-          <button onClick={file.import}>Import SketchUp, CAD or OBJ… <kbd>⌘I</kbd></button>
-          <button onClick={() => fileRef.current?.click()}>Import from browser upload…</button>
+          <button {...standalone} onClick={file.import}>Import SketchUp, CAD or OBJ… <kbd>⌘I</kbd></button>
+          <button {...standalone} onClick={() => fileRef.current?.click()}>Import from browser upload…</button>
           <button
+            {...standalone}
             className="submenu-btn"
             aria-expanded={exportOpen}
             onClick={(e) => {
@@ -72,6 +75,7 @@ export function FileMenu({ file, section, plugins, livePlugins, setPlugins, runP
             </div>
           )}
           <button
+            {...standalone}
             className="submenu-btn"
             aria-expanded={pluginsOpen}
             onClick={(e) => {
@@ -100,13 +104,13 @@ export function FileMenu({ file, section, plugins, livePlugins, setPlugins, runP
             </div>
           )}
           <hr />
-          <button onClick={file.blueprint}>Make blueprint (PDF)…</button>
+          <button {...standalone} onClick={file.blueprint}>Make blueprint (PDF)…</button>
           <button onClick={() => open.sheets()}>Drawing sheets (PDF)…</button>
           <button onClick={() => open.timeline()}>Timeline (video)…</button>
           <hr />
-          <button onClick={() => open.location()}>Add location…</button>
+          <button {...standalone} onClick={() => open.location()}>Add location…</button>
           <button onClick={() => open.text3d()}>3D Text…</button>
-          <button onClick={file.report}>Generate report (CSV)…</button>
+          <button {...standalone} onClick={file.report}>Generate report (CSV)…</button>
           <hr />
           <button onClick={() => open.keys()}>
             Keyboard shortcuts <kbd>{keyText("help.shortcuts")}</kbd>

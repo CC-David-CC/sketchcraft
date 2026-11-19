@@ -1,9 +1,14 @@
+import { hosted, preferences } from "./webos-mode";
 // File pickers: native dialogs in the desktop app, typed paths in a browser.
 import { open, save } from "@tauri-apps/plugin-dialog";
 
 const inTauri = "__TAURI_INTERNALS__" in window;
 
 export async function pickOpen(): Promise<string | null> {
+  if (hosted) {
+    window.dispatchEvent(new CustomEvent("webos-model-notice", {detail:"This format requires the standalone SketchCraft application."}));
+    return null;
+  }
   if (!inTauri) return window.prompt("Open which file? (full path to .sketchcraft, .skp, .dwg, .dxf, .fbx, .obj, or a .ply / .las / .xyz scan)");
   const r = await open({
     multiple: false,
@@ -22,6 +27,10 @@ export async function pickOpen(): Promise<string | null> {
 }
 
 export async function pickSave(defaultName: string, ext: string, label: string): Promise<string | null> {
+  if (hosted) {
+    window.dispatchEvent(new CustomEvent("webos-model-notice", {detail:"This format requires the standalone SketchCraft application."}));
+    return null;
+  }
   if (!inTauri) return window.prompt(`Save to which path? (.${ext})`, defaultName);
   const r = await save({ defaultPath: defaultName, filters: [{ name: label, extensions: [ext] }] });
   return r ?? null;
@@ -36,7 +45,7 @@ export function isModelPath(p: string | null | undefined): p is string {
 
 export function rememberedFile(): string | null {
   try {
-    const p = localStorage.getItem(KEY);
+    const p = preferences().getItem(KEY);
     return isModelPath(p) ? p : null;
   } catch {
     return null;
@@ -45,8 +54,8 @@ export function rememberedFile(): string | null {
 
 export function rememberFile(path: string | null) {
   try {
-    if (path) localStorage.setItem(KEY, path);
-    else localStorage.removeItem(KEY);
+    if (path) preferences().setItem(KEY, path);
+    else preferences().removeItem(KEY);
   } catch {
     /* storage unavailable: the title just won't persist */
   }

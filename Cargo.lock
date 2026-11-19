@@ -3703,7 +3703,17 @@ dependencies = [
  "skrifa",
  "subsetter",
  "tiny_http",
+ "web-time",
  "zip",
+]
+
+[[package]]
+name = "sketchcraft-web"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "sketchcraft-core",
+ "wasm-bindgen",
 ]
 
 [[package]]

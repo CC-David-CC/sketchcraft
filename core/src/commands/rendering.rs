@@ -49,7 +49,7 @@ impl Engine {
                     warmth: warmth.clamp(-1.0, 1.0),
                 }
                 .limited();
-                let t0 = std::time::Instant::now();
+                let t0 = web_time::Instant::now();
                 let mut spp = po.samples;
                 let img = if progressive {
                     // same picture as last time? keep adding to it

@@ -525,14 +525,14 @@ thread_local! {
     static OVER: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// a block reference was expanded (so a refusal can say whether that was the cause)
     static EXPANDED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-    static STARTED: std::cell::Cell<Option<std::time::Instant>> = const { std::cell::Cell::new(None) };
+    static STARTED: std::cell::Cell<Option<web_time::Instant>> = const { std::cell::Cell::new(None) };
 }
 
 /// The whole import (expansion and model building) must finish in this long.
 const MAX_IMPORT_SECONDS: u64 = 15;
 
 thread_local! {
-    static IMPORT_STARTED: std::cell::Cell<Option<std::time::Instant>> = const { std::cell::Cell::new(None) };
+    static IMPORT_STARTED: std::cell::Cell<Option<web_time::Instant>> = const { std::cell::Cell::new(None) };
 }
 
 /// The most edges and faces one import may make. Crossing lines make a face for
@@ -913,8 +913,8 @@ fn import_inner(m: &mut Model, text: &str, name: &str, units: Option<&str>, at: 
     VISITS.with(|v| v.set(0));
     OVER.with(|o| o.set(false));
     EXPANDED.with(|e| e.set(false));
-    STARTED.with(|s| s.set(Some(std::time::Instant::now())));
-    IMPORT_STARTED.with(|s| s.set(Some(std::time::Instant::now())));
+    STARTED.with(|s| s.set(Some(web_time::Instant::now())));
+    IMPORT_STARTED.with(|s| s.set(Some(web_time::Instant::now())));
     STOPPED.with(|s| s.set(false));
     WORK.with(|w| w.set(0));
     for e in entities(&ents_raw) {

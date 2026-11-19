@@ -174,7 +174,7 @@ pub struct Engine {
     /// memory undo history may use (estimated bytes); 0: the default
     pub undo_budget: usize,
     /// an open batch: the model before it began, the revision then, and when
-    batch: Option<(Model, u64, std::time::Instant)>,
+    batch: Option<(Model, u64, web_time::Instant)>,
     /// counts batches, so an `end_batch` can say which one it means
     batch_seq: u64,
     /// the model was opened with more geometry than the limit allows: it can be looked at and
@@ -361,7 +361,7 @@ impl Engine {
     #[doc(hidden)]
     pub fn expire_batch_for_test(&mut self) {
         if let Some(b) = self.batch.as_mut() {
-            b.2 = std::time::Instant::now() - BATCH_MAX - std::time::Duration::from_secs(1);
+            b.2 = web_time::Instant::now() - BATCH_MAX - std::time::Duration::from_secs(1);
         }
     }
 
@@ -479,6 +479,16 @@ impl Engine {
         self.revision += 1;
         self.trim_undo();
         Ok(())
+    }
+
+    /// Start an independent browser document after the same validation as a restore.
+    /// Opening a file establishes the baseline of its Undo history.
+    pub fn from_model(model: Model) -> Result<Self> {
+        let mut engine = Self::new();
+        engine.replace_model(model)?;
+        engine.undo.clear();
+        engine.step_origins.clear();
+        Ok(engine)
     }
 
     /// How many steps Undo can go back.
