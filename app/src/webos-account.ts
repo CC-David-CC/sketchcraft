@@ -212,10 +212,14 @@ export async function startAccount() {
     model = new wasm.BrowserModel();
   } catch (e) { post("failed",{message:message(e)}); throw e; }
   return new Promise<void>((resolve,reject) => {
-    const timeout = window.setTimeout(() => reject(Error("WebOS did not open the model.")), 120000);
+    let openFailed = false;
+    const timeout = window.setTimeout(() => {
+      openFailed = true;
+      reject(Error("WebOS did not open the model."));
+    }, 120000);
     window.addEventListener("message", event => {
       const p = event.data;
-      if (event.source !== window.parent || event.origin !== location.origin || p?.generation !== frameGeneration ||
+      if (openFailed || event.source !== window.parent || event.origin !== location.origin || p?.generation !== frameGeneration ||
           typeof p.type !== "string" || !p.type.startsWith(prefix)) return;
       const kind = p.type.slice(prefix.length);
       if (kind !== "start") { if (documentId) receive(kind, p); return; }
@@ -236,6 +240,7 @@ export async function startAccount() {
         publish();
         resolve();
       } catch (e) {
+        openFailed = true;
         post("started",{requestId:p.requestId,ok:false,message:message(e)});
         reject(e);
       }
