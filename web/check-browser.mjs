@@ -115,23 +115,24 @@ try {
     await initialize();
     const model = new BrowserModel();
     const run = command => {
-      const reply = JSON.parse(model.execute("ui", JSON.stringify(command)));
-      if (!reply.ok) throw Error(reply.error || `SketchCraft rejected ${command.cmd}`);
-      return reply;
+      try {
+        const reply = JSON.parse(model.execute("ui", JSON.stringify(command)));
+        if (!reply.ok) throw Error(reply.error || "Command refused");
+        return reply;
+      } catch (error) {
+        throw Error(`SketchCraft Layout command ${command.cmd}: ${error.message}`);
+      }
     };
-    try {
-      const {face} = run({cmd:"rect",from:[0,0,0],to:[4,4,0]});
-      const {sheet} = run({cmd:"sheet_add",name:"Plan",paper:"a3"});
-      run({cmd:"viewport_add",sheet,view:{type:"plan",cut_z:1.2,floor_z:0},scale:"1:50",rect_mm:[15,15,250,180]});
-      run({cmd:"sheet_ir",sheet});
-      if (run({cmd:"drafting_status"}).kept !== 1) throw Error("Initial page did not cache its viewport");
-      run({cmd:"pushpull",face,distance:3});
-      if (run({cmd:"drafting_status"}).kept !== 0) throw Error("Model edit did not invalidate the viewport");
-      run({cmd:"sheet_ir",sheet});
-      if (run({cmd:"drafting_status"}).kept !== 1) throw Error("Page request did not rebuild its viewport");
-    } finally {
-      model.free();
-    }
+    const {face} = run({cmd:"rect",from:[0,0,0],to:[4,4,0]});
+    const {sheet} = run({cmd:"sheet_add",name:"Plan",paper:"a3"});
+    run({cmd:"viewport_add",sheet,view:{type:"plan",cut_z:1.2,floor_z:0},scale:"1:50",rect_mm:[15,15,250,180]});
+    run({cmd:"sheet_ir",sheet});
+    if (run({cmd:"drafting_status"}).kept !== 1) throw Error("Initial page did not cache its viewport");
+    run({cmd:"pushpull",face,distance:3});
+    if (run({cmd:"drafting_status"}).kept !== 0) throw Error("Model edit did not invalidate the viewport");
+    run({cmd:"sheet_ir",sheet});
+    if (run({cmd:"drafting_status"}).kept !== 1) throw Error("Page request did not rebuild its viewport");
+    model.free();
   });
   const canvas=await app.frame.$('.viewport canvas');
   const bounds=await canvas.boundingBox();

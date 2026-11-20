@@ -128,6 +128,9 @@ pub fn draw_viewports(m: &Model, bm: &Model, vps: &[ViewportSpec], pens: &Pens, 
     let mut out: Vec<Option<Result<Arc<Vec<Prim>>>>> = (0..vps.len()).map(|i| cache.and_then(|c| c.get(&keys[i])).map(Ok)).collect();
     let missing: Vec<usize> = (0..vps.len()).filter(|i| out[*i].is_none()).collect();
     for group in missing.chunks(threads) {
+        #[cfg(target_arch = "wasm32")]
+        let got = group.iter().map(|i| viewport(m, bm, &vps[*i], pens, sh)).collect::<Vec<_>>();
+        #[cfg(not(target_arch = "wasm32"))]
         let got: Vec<Result<Vec<Prim>>> = std::thread::scope(|s| {
             let hs: Vec<_> = group.iter().map(|i| s.spawn(|| viewport(m, bm, &vps[*i], pens, sh))).collect();
             hs.into_iter().map(|h| h.join().unwrap_or_else(|_| Err(anyhow::anyhow!("a viewport's drawing stopped unexpectedly")))).collect()
