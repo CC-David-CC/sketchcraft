@@ -19,7 +19,7 @@ export function FileMenu({ file, section, plugins, livePlugins, setPlugins, runP
   reloadPlugins: () => void;
   fileRef: RefObject<HTMLInputElement | null>;
   /** the dialogs the menu opens, by what they are */
-  open: { restore: () => void; plugins: () => void; sheets: () => void; timeline: () => void; location: () => void; text3d: () => void; keys: () => void; keyEditor: () => void };
+  open: { restore: () => void; plugins: () => void; sheets: () => void; layout: () => void; timeline: () => void; location: () => void; text3d: () => void; keys: () => void; keyEditor: () => void };
 }) {
   const standalone = hosted ? {disabled:true, title:"Available in standalone SketchCraft"} : {};
   const [fileMenu, setFileMenu] = useState(false);
@@ -105,6 +105,9 @@ export function FileMenu({ file, section, plugins, livePlugins, setPlugins, runP
           )}
           <hr />
           <button {...standalone} onClick={file.blueprint}>Make blueprint (PDF)…</button>
+          <button onClick={() => open.layout()} title="The Layout workspace: pages of drawings, to scale">
+            Open in Layout
+          </button>
           <button onClick={() => open.sheets()}>Drawing sheets (PDF)…</button>
           <button onClick={() => open.timeline()}>Timeline (video)…</button>
           <hr />

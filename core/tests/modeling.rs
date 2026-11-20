@@ -633,6 +633,15 @@ fn solid_tools_union_subtract_intersect_split() {
 
 #[test]
 fn trim_keeps_nested_hardware_editable_under_the_result() {
+    cut_keeps_nested_hardware_editable("trim", true);
+}
+
+#[test]
+fn subtract_keeps_nested_hardware_editable_after_consuming_the_cutter() {
+    cut_keeps_nested_hardware_editable("subtract", false);
+}
+
+fn cut_keeps_nested_hardware_editable(op: &str, keeps_cutter: bool) {
     let mut e = Engine::new();
     let assembly = run(&mut e, json!({"cmd":"begin_group","name":"Assembly"}))["group"].as_u64().unwrap();
     let leaf = box_group(&mut e, [0.0, 0.0, 0.0], [0.9, 0.044, 2.1], "Door leaf");
@@ -647,11 +656,11 @@ fn trim_keeps_nested_hardware_editable_under_the_result() {
     let handle_faces = run(&mut e, json!({"cmd":"faces","group":handle}));
     let hinge_transform = e.model.instances[&(hinge as u32)].transform;
 
-    let result = run(&mut e, json!({"cmd":"solid","op":"trim","ids":[cutter,leaf]}))["group"].as_u64().unwrap();
+    let result = run(&mut e, json!({"cmd":"solid","op":op,"ids":[cutter,leaf]}))["group"].as_u64().unwrap();
     assert!((volume(&mut e, result) - 0.08305).abs() < 1e-6);
     assert_eq!(e.model.groups[&(result as u32)].parent, Some(assembly as u32));
     assert_eq!(e.model.groups[&(result as u32)].tag.as_deref(), Some("Wood"));
-    assert!(e.model.groups.contains_key(&(cutter as u32)));
+    assert_eq!(e.model.groups.contains_key(&(cutter as u32)), keeps_cutter);
     assert_eq!(e.model.groups[&(handle as u32)].parent, Some(result as u32));
     assert!(e.model.groups[&(handle as u32)].locked);
     assert_eq!(run(&mut e, json!({"cmd":"faces","group":handle})), handle_faces);
@@ -663,7 +672,21 @@ fn trim_keeps_nested_hardware_editable_under_the_result() {
 }
 
 #[test]
-fn trim_rejects_inconsistent_faces_and_inward_shells() {
+fn subtract_does_not_remove_disjoint_or_touching_cutters() {
+    for cutter_x in [1.0, 2.0] {
+        let mut e = Engine::new();
+        let target = box_group(&mut e, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0], "Target");
+        let cutter = box_group(&mut e, [cutter_x, 0.0, 0.0], [cutter_x + 1.0, 1.0, 1.0], "Cutter");
+        let before = serde_json::to_value(&e.model).unwrap();
+        let r = e.exec_json(&json!({"cmd":"solid","op":"subtract","ids":[cutter,target]}).to_string());
+        assert_eq!(r["ok"], false, "cutter at x={cutter_x}: {r}");
+        assert!(r["error"].as_str().unwrap().contains("do not overlap in volume"), "{r}");
+        assert_eq!(serde_json::to_value(&e.model).unwrap(), before);
+    }
+}
+
+#[test]
+fn trim_and_subtract_reject_inconsistent_faces_and_inward_shells() {
     for reverse_whole_shell in [false, true] {
         let mut e = Engine::new();
         let target = box_group(&mut e, [3.0, 5.0, 7.0], [4.0, 6.0, 8.0], "Target");
@@ -676,11 +699,13 @@ fn trim_rejects_inconsistent_faces_and_inward_shells() {
         run(&mut e, json!({"cmd":"reverse","ids":[reversed]}));
         let before = run(&mut e, json!({"cmd":"info"}));
 
-        let r = e.exec_json(&json!({"cmd":"solid","op":"trim","ids":[cutter,target]}).to_string());
-        assert_eq!(r["ok"], false, "{r}");
         let reason = if reverse_whole_shell { "inward-facing faces" } else { "inconsistently oriented faces" };
-        assert!(r["error"].as_str().unwrap().contains(reason), "{r}");
-        assert_eq!(run(&mut e, json!({"cmd":"info"})), before);
+        for op in ["trim", "subtract"] {
+            let r = e.exec_json(&json!({"cmd":"solid","op":op,"ids":[cutter,target]}).to_string());
+            assert_eq!(r["ok"], false, "{op}: {r}");
+            assert!(r["error"].as_str().unwrap().contains(reason), "{r}");
+            assert_eq!(run(&mut e, json!({"cmd":"info"})), before);
+        }
     }
 }
 
@@ -710,6 +735,40 @@ fn trim_supports_an_enclosed_cavity() {
     let drill = box_group(&mut e, [0.75, 0.75, 1.25], [1.25, 1.25, 2.5], "Drill");
     let result = run(&mut e, json!({"cmd":"solid","op":"trim","ids":[drill,hollow]}))["group"].as_u64().unwrap();
     assert!((volume(&mut e, result) - 6.875).abs() < 1e-6);
+}
+
+#[test]
+fn mirrored_component_keeps_outward_faces_in_the_scene_and_trim() {
+    let mut e = Engine::new();
+    let panel = box_group(&mut e, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0], "Panel");
+    let component = run(&mut e, json!({"cmd":"make_component","ids":[panel],"name":"Panel"}));
+    let instance = component["instance"].as_u64().unwrap();
+    let definition = component["component"].as_u64().unwrap();
+    run(&mut e, json!({"cmd":"scale","ids":[instance],"center":[0,0,0],"factor":[-1,1,1]}));
+    let center = DVec3::new(-0.5, 0.5, 0.5);
+    let faces = e.model.world_faces();
+    assert_eq!(faces.len(), 6);
+    assert!(faces.iter().all(|face| face.normal.dot(face.outer[0] - center) > 0.0));
+
+    let edit_scene = sketchcraft::scene::build(&e.model, Some(definition as u32));
+    let point = |values: &[Value]| DVec3::new(values[0].as_f64().unwrap(), values[1].as_f64().unwrap(), values[2].as_f64().unwrap());
+    let edit_faces = edit_scene["faces"].as_array().unwrap();
+    assert_eq!(edit_faces.len(), 6);
+    for face in edit_faces {
+        let normal = point(face["normal"].as_array().unwrap());
+        let corner = point(face["outer"][0].as_array().unwrap());
+        assert!(normal.dot(corner - center) > 0.0, "editable face points inward: {face}");
+    }
+    let triangles = edit_scene["editPositions"].as_array().unwrap();
+    assert_eq!(triangles.len(), 12 * 9);
+    for tri in triangles.chunks_exact(9) {
+        let (a, b, c) = (point(&tri[0..3]), point(&tri[3..6]), point(&tri[6..9]));
+        assert!((b - a).cross(c - a).dot(a - center) > 0.0, "editable triangle points inward");
+    }
+
+    let cutter = box_group(&mut e, [-0.75, 0.25, -0.1], [-0.25, 0.75, 1.1], "Cutter");
+    let cut = run(&mut e, json!({"cmd":"solid","op":"trim","ids":[cutter,instance]}))["group"].as_u64().unwrap();
+    assert!((volume(&mut e, cut) - 0.75).abs() < 1e-9);
 }
 
 #[test]

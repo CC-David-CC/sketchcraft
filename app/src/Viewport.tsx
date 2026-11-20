@@ -17,7 +17,8 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-import { edgePens } from "./viewport/linepens";
+import { edgePens, PX_PER_MM } from "./viewport/linepens";
+import { hatchMaterial, shaderCan, type CapHatch } from "./viewport/hatchshader";
 import { exec, type Annotation, type Reply, type Scene, type Vec3 } from "./engine";
 import { CageEditor, type CageData, type CageUi } from "./cage";
 import { CageBar } from "./cagebar";
@@ -30,6 +31,7 @@ import { autoTagColor, ACCENT, BACKGROUNDS } from "./viewport/colors";
 import { styledEdges, averagedNormals, smoothNormals } from "./viewport/edges";
 import { profileMaterial, textureFor } from "./viewport/materials";
 import { UP, r4, arr, circleThrough, bulgeThrough, basis, arcPoints, offsetOutline } from "./viewport/geometry";
+import { selectMarquee } from "./viewport/marquee";
 import { isTypingTarget } from "./keymap";
 import type { Tool, BuildSettings, FaceStyle, Backdrop, Styles, Cam, ViewportApi, PluginPoint, Props, Op, LabelSpec, Last } from "./viewport/types";
 export { autoTagColor };
@@ -296,6 +298,11 @@ export default function Viewport(props: Props) {
     let raf = 0;
     const loop = () => {
       edit?.changed();
+      // put away under the Layout workspace: nothing moves, nothing is drawn, until it shows again
+      if (live.current.paused) {
+        raf = requestAnimationFrame(loop);
+        return;
+      }
       controls.update();
       const cam = t.current!.camera;
       if (live.current.styles.ao) {
@@ -846,12 +853,70 @@ export default function Viewport(props: Props) {
         // nudge toward the viewer side so the cap isn't clipped away
         const lift = plane.normal.clone().multiplyScalar(0.002);
         const shift = (a: number[]) => a.map((v, i) => v + [lift.x, lift.y, lift.z][i % 3]);
+        // the cap's fills sit a little behind in depth, so its hatch lines and outlines (in the same plane) draw over
+        // them from whichever side the cut is seen
+        const capBehind = { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4 };
         if (fill.length) {
           const g = new THREE.BufferGeometry();
           g.setAttribute("position", new THREE.Float32BufferAttribute(shift(fill), 3));
-          const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x3a3d4a, side: THREE.DoubleSide }));
+          const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x3a3d4a, side: THREE.DoubleSide, ...capBehind }));
           m.userData.sectionFill = true;
           T2.model.add(m);
+        }
+        // a tag's hatch, drawn by the hatch shader: paper white with the pattern's lines at the hatch's weight
+        for (const h of (r.hatches as CapHatch[] | undefined) ?? []) {
+          if (!h.fill.length || !shaderCan(h.families)) continue;
+          const g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.Float32BufferAttribute(shift(h.fill), 3));
+          const m = new THREE.Mesh(g, hatchMaterial(h, null));
+          m.userData.sectionFill = true;
+          m.userData.sectionHatchFill = true;
+          m.userData.sectionHatch = h.tag;
+          m.userData.hatchShader = true;
+          T2.model.add(m);
+        }
+        // (a pattern the shader can't take comes as lines: its cut walls on paper-white, the lines in the hatch colour)
+        const paper = (r.hatchFill as number[] | undefined) ?? [];
+        if (paper.length) {
+          const g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.Float32BufferAttribute(shift(paper), 3));
+          const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xf6f5f0, side: THREE.DoubleSide, ...capBehind }));
+          m.userData.sectionFill = true;
+          m.userData.sectionHatchFill = true;
+          T2.model.add(m);
+        }
+        // a tag's own solid colour (a tag whose cut fill is none sends nothing: the cut stays open, outlined)
+        for (const sf of (r.solid as { tag: string; color: string; fill: number[] }[] | undefined) ?? []) {
+          if (!sf.fill.length) continue;
+          const g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.Float32BufferAttribute(shift(sf.fill), 3));
+          const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: new THREE.Color(sf.color), side: THREE.DoubleSide, ...capBehind }));
+          m.userData.sectionFill = true;
+          m.userData.sectionSolid = sf.tag;
+          T2.model.add(m);
+        }
+        // a tag's own cut outline: its weight as a thick line (paper mm to px, as the edges' pens)
+        const el = T2.renderer.domElement;
+        for (const ol of (r.outlines as { tag: string; weight_mm: number; color: string; lines: number[] }[] | undefined) ?? []) {
+          if (!ol.lines.length) continue;
+          const lift3 = plane.normal.clone().multiplyScalar(0.002);
+          const lg = new LineSegmentsGeometry();
+          lg.setPositions(ol.lines.map((v, i) => v + [lift3.x, lift3.y, lift3.z][i % 3]));
+          const lm = new LineMaterial({ color: new THREE.Color(ol.color), linewidth: Math.max(1, ol.weight_mm * PX_PER_MM), worldUnits: false });
+          lm.resolution.set(el.clientWidth, el.clientHeight);
+          const ls = new LineSegments2(lg, lm);
+          ls.userData.sectionOutline = ol.tag;
+          ls.userData.pen = true;
+          T2.model.add(ls);
+        }
+        const lift2 = plane.normal.clone().multiplyScalar(0.002);
+        for (const h of (r.hatch as { tag: string; color: string; lines: number[] }[] | undefined) ?? []) {
+          if (!h.lines.length) continue;
+          const g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.Float32BufferAttribute(h.lines.map((v, i) => v + [lift2.x, lift2.y, lift2.z][i % 3]), 3));
+          const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: new THREE.Color(h.color || "#1a1a1f") }));
+          ls.userData.sectionHatch = h.tag;
+          T2.model.add(ls);
         }
         if (lines.length) {
           const g = new THREE.BufferGeometry();
@@ -1184,9 +1249,27 @@ export default function Viewport(props: Props) {
   }
 
   function selectionLines(sel: Sel): number[] {
+    const s = sceneNow();
     const out: number[] = [];
     const ids = new Set(sel.edges);
-    for (const e of sceneNow().edgeList) if (ids.has(e.id)) out.push(...e.a, ...e.b);
+    for (const e of s.edgeList) if (ids.has(e.id)) out.push(...e.a, ...e.b);
+    if (s.editing == null && (sel.groups.length || sel.instances.length)) {
+      const triangleOwners = new Set(s.triFace);
+      const closedOwners = new Set(sel.instances.filter((id) => !triangleOwners.has(id)));
+      const wireGroups = new Set<number>();
+      for (const group of sel.groups) {
+        const descendants = subtree(group);
+        const owners = groupFaces(group);
+        if (![...owners].some((id) => triangleOwners.has(id))) descendants.forEach((id) => wireGroups.add(id));
+        for (const inst of s.instances) {
+          if (inst.parent != null && descendants.has(inst.parent) && !triangleOwners.has(inst.id)) closedOwners.add(inst.id);
+        }
+      }
+      for (const edge of s.edgeList) if (edge.group != null && wireGroups.has(edge.group)) closedOwners.add(edge.id);
+      s.edgeIds.forEach((id, i) => {
+        if (closedOwners.has(id) && !ids.has(id)) out.push(...s.edges.slice(i * 6, i * 6 + 6));
+      });
+    }
     return out;
   }
 
@@ -3155,38 +3238,18 @@ export default function Viewport(props: Props) {
       const s = sceneNow();
       const cam = t.current!.camera;
       const r = rect();
-      const [x0, x1] = [Math.min(op.x0, op.x1) - r.left, Math.max(op.x0, op.x1) - r.left];
-      const [y0, y1] = [Math.min(op.y0, op.y1) - r.top, Math.max(op.y0, op.y1) - r.top];
-      const crossing = op.x1 < op.x0;
-      const inside = (p: number[] | THREE.Vector3) => {
-        const v = (Array.isArray(p) ? V(p) : p.clone()).project(cam);
-        const x = (v.x * 0.5 + 0.5) * r.width;
-        const y = (-v.y * 0.5 + 0.5) * r.height;
-        return v.z < 1 && x >= x0 && x <= x1 && y >= y0 && y <= y1;
-      };
-      const test = (pts: (number[] | THREE.Vector3)[]) => (crossing ? pts.some(inside) : pts.every(inside));
-      const out: Sel = { faces: [], edges: [], groups: [], instances: [] };
-      const groupsHit = new Map<number, boolean[]>();
-      for (const f of s.faces) {
-        const ok = test(f.outer);
-        const g = selectableGroup(f.group);
-        if (g != null) groupsHit.set(g, [...(groupsHit.get(g) ?? []), ok]);
-        else if (ok) out.faces.push(f.id);
-      }
-      for (const [g, hits] of groupsHit) if (crossing ? hits.some(Boolean) : hits.every(Boolean)) out.groups.push(g);
-      for (const ed of s.edgeList) if (!ed.soft && (ed.group == null || ed.group === s.activeGroup) && test([ed.a, ed.b])) out.edges.push(ed.id);
-      if (s.editing == null) {
-        for (const inst of s.instances) {
-          const pos = trianglesOf(new Set([inst.id]));
-          const pts: THREE.Vector3[] = [];
-          for (let i = 0; i < pos.length; i += 9) pts.push(new THREE.Vector3(pos[i], pos[i + 1], pos[i + 2]));
-          if (pts.length && test(pts)) out.instances.push(inst.id);
-        }
-      }
-      return out;
+      if (!r.width || !r.height) return EMPTY;
+      const x = (value: number) => 2 * (value - r.left) / r.width - 1;
+      const y = (value: number) => 1 - 2 * (value - r.top) / r.height;
+      const viewProjection = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+      return selectMarquee(s, viewProjection, {
+        left: x(Math.min(op.x0, op.x1)), right: x(Math.max(op.x0, op.x1)),
+        bottom: y(Math.max(op.y0, op.y1)), top: y(Math.min(op.y0, op.y1)),
+      }, op.x1 < op.x0);
     }
 
     const key = (e: KeyboardEvent) => {
+      if (live.current.paused) return;
       const typing = isTypingTarget(e.target);
       if (e.code === "Space" && !typing) {
         const isDown = e.type === "keydown";
