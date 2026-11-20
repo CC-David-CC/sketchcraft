@@ -124,11 +124,13 @@ try {
       }
     };
     const {face} = run({cmd:"rect",from:[0,0,0],to:[4,4,0]});
+    run({cmd:"pushpull",face,distance:3});
     const {sheet} = run({cmd:"sheet_add",name:"Plan",paper:"a3"});
     run({cmd:"viewport_add",sheet,view:{type:"plan",cut_z:1.2,floor_z:0},scale:"1:50",rect_mm:[15,15,250,180]});
     run({cmd:"sheet_ir",sheet});
     if (run({cmd:"drafting_status"}).kept !== 1) throw Error("Initial page did not cache its viewport");
-    run({cmd:"pushpull",face,distance:3});
+    const added = run({cmd:"rect",from:[6,0,0],to:[8,2,0]});
+    run({cmd:"pushpull",face:added.face,distance:2});
     if (run({cmd:"drafting_status"}).kept !== 0) throw Error("Model edit did not invalidate the viewport");
     run({cmd:"sheet_ir",sheet});
     if (run({cmd:"drafting_status"}).kept !== 1) throw Error("Page request did not rebuild its viewport");
