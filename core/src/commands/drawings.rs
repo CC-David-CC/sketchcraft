@@ -86,6 +86,10 @@ impl Engine {
     /// Draw what isn't kept of these sheets' viewports on the background worker, from a copy of the model as it is
     /// now. Nothing waits for it; a change made meanwhile makes it throw its work away (`Drawings::put`).
     pub fn warm_sheets(&self, sheets: &[Id]) {
+        // Single-threaded browser builds redraw invalidated viewports when the page requests them.
+        if cfg!(target_arch = "wasm32") {
+            return;
+        }
         let mut pages = Vec::new();
         let world: std::sync::Arc<crate::draft::cache::World> = Default::default();
         for s in sheets {
