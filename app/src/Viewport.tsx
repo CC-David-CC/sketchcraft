@@ -2339,7 +2339,7 @@ export default function Viewport(props: Props) {
       T.preview.add(polyline([...op.pts, q], ACCENT));
       return;
     };
-    const rectangleCorner = ({ e, E, op }: { e: PointerEvent; E: ReturnType<typeof env>; op: Extract<Op, { t: "rect" }> }) => {
+    const rectangleCorner = ({ e, E, op }: Omit<MoveArgs<"rect">, "L" | "lock">) => {
       // no axis lock from the first corner: that would squash the rectangle flat
       const sn = infer(E, e, { plane: { origin: op.p0, normal: op.n } });
       const d = sn.p.clone().sub(op.p0);
@@ -2347,7 +2347,7 @@ export default function Viewport(props: Props) {
       op.b = d.dot(op.v);
       return sn;
     };
-    const moveRect = ({ e, E, op }: MoveArgs<"rect">) => {
+    const moveRect = ({ e, L, E, op }: MoveArgs<"rect">) => {
       const sn = rectangleCorner({ e, E, op });
       const pts = rectCorners(op);
       T.preview.add(polyline(pts, ACCENT, true));
