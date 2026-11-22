@@ -2339,12 +2339,16 @@ export default function Viewport(props: Props) {
       T.preview.add(polyline([...op.pts, q], ACCENT));
       return;
     };
-    const moveRect = ({ e, L, E, op, lock }: MoveArgs<"rect">) => {
+    const rectangleCorner = ({ e, E, op }: { e: PointerEvent; E: ReturnType<typeof env>; op: Extract<Op, { t: "rect" }> }) => {
       // no axis lock from the first corner: that would squash the rectangle flat
       const sn = infer(E, e, { plane: { origin: op.p0, normal: op.n } });
       const d = sn.p.clone().sub(op.p0);
       op.a = d.dot(op.u);
       op.b = d.dot(op.v);
+      return sn;
+    };
+    const moveRect = ({ e, E, op }: MoveArgs<"rect">) => {
+      const sn = rectangleCorner({ e, E, op });
       const pts = rectCorners(op);
       T.preview.add(polyline(pts, ACCENT, true));
       const fill = new THREE.BufferGeometry().setFromPoints([pts[0], pts[1], pts[2], pts[0], pts[2], pts[3]]);
@@ -2642,7 +2646,11 @@ export default function Viewport(props: Props) {
       return;
     };
     const downRect = async ({ e, E, op }: DownArgs) => {
-      if (op?.t === "rect") return void (await commitRect());
+      if (op?.t === "rect") {
+        // A second tap can arrive without any pointermove between the two corners.
+        rectangleCorner({ e, E, op });
+        return void (await commitRect());
+      }
       const sn = infer(E, e, {});
       const n = sn.face ? V(sn.face.normal) : UP.clone();
       const [u, v] = basis(n);
