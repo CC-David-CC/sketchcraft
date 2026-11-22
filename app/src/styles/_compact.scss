@@ -1,0 +1,74 @@
+.compact-panels {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .app[class] {
+    position: relative;
+    grid-template: 48px minmax(0, 1fr) / minmax(0, 1fr);
+  }
+  .app .stage {
+    grid-area: 2 / 1;
+    min-width: 0;
+  }
+  .app .topbar {
+    grid-area: 1 / 1;
+    padding: 0 6px;
+    gap: 4px;
+  }
+  .brand-name, .brand .sep, .brand .live, .brand .doc,
+  .topbar > .ws-switch, .topbar > .top-actions {
+    display: none;
+  }
+  .compact-panels {
+    display: flex;
+    margin-left: auto;
+    gap: 2px;
+    button {
+      padding: 0 6px;
+      min-height: 40px;
+      border-radius: var(--radius);
+    }
+    button[aria-expanded="true"] {
+      background: var(--line);
+    }
+  }
+  .app .panel.left, .app .panel.right {
+    display: none;
+    position: absolute;
+    top: 48px;
+    bottom: 0;
+    width: min(288px, 90%);
+    z-index: 80;
+    box-shadow: var(--shadow);
+  }
+  .app[data-compact-panel="left"]:not(.no-left) .panel.left,
+  .app[data-compact-panel="right"]:not(.no-right) .panel.right {
+    display: flex;
+  }
+  .app .panel.left { left: 0; }
+  .app .panel.right { right: 0; }
+  .app[data-compact-panel="workspace"] .topbar > .ws-switch,
+  .app[data-compact-panel="workspace"] .topbar > .top-actions {
+    display: flex;
+    position: absolute;
+    inset: 48px 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    border: 0;
+    border-radius: 0;
+    background: var(--panel);
+    z-index: 80;
+  }
+  .app[data-compact-panel="workspace"] .topbar > .top-actions {
+    top: 96px;
+    box-shadow: var(--shadow);
+  }
+  .app.dock-classic .views {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    button { flex: none; }
+  }
+  .app.dock-classic .more-tools { right: 0; }
+}

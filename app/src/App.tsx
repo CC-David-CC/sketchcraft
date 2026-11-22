@@ -122,6 +122,10 @@ const unhex = (h: string): [number, number, number] => [1, 3, 5].map((i) => pars
 
 
 export default function App() {
+  const [compactPanel, setCompactPanel] = useState<"left" | "right" | "workspace" | null>(null);
+  function togglePanel(panel: "left" | "right" | "workspace") {
+    setCompactPanel(open => open === panel ? null : panel);
+  }
   const [scene, setScene] = useState<Scene | null>(null);
   const [tool, setTool] = useState<Tool>("rect");
   const [sel, setSel] = useState<Sel>(EMPTY);
@@ -588,7 +592,7 @@ export default function App() {
   const selCount = selIds(sel).length;
 
   return (
-    <div className={`app ${inLayout ? "ws-layout" : ""} ${ws.showLeft ? "" : "no-left"} ${ws.showRight ? "" : "no-right"} ${ws.dock === "left" ? "dock-left" : ws.dock === "classic" ? "dock-classic" : ""} ${layout === "side" ? "panels-right" : ""}`}>
+    <div data-compact-panel={compactPanel ?? undefined} className={`app ${inLayout ? "ws-layout" : ""} ${ws.showLeft ? "" : "no-left"} ${ws.showRight ? "" : "no-right"} ${ws.dock === "left" ? "dock-left" : ws.dock === "classic" ? "dock-classic" : ""} ${layout === "side" ? "panels-right" : ""}`}>
       <header className="topbar" data-tauri-drag-region>
         <div className="brand" data-tauri-drag-region>
           <Logo />
@@ -614,6 +618,11 @@ export default function App() {
               Editing {scene?.editing != null ? "component" : "group"} · Done
             </button>
           )}
+        </div>
+        <div className="compact-panels" aria-label="SketchCraft panels">
+          {ws.showLeft && <button aria-expanded={compactPanel === "left"} onClick={() => togglePanel("left")}>Browser</button>}
+          {ws.showRight && <button aria-expanded={compactPanel === "right"} onClick={() => togglePanel("right")}>Inspector</button>}
+          <button aria-expanded={compactPanel === "workspace"} onClick={() => togglePanel("workspace")}>Workspace</button>
         </div>
         <div className="ws-switch" role="tablist" aria-label="Workspace">
           {WORKSPACES.map((w) => (
