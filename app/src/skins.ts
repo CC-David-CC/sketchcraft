@@ -1,4 +1,5 @@
-import { preferences } from "./webos-mode";
+// The embedded editor stores appearance choices separately from model preferences.
+import { appearanceStorage, preferences } from "./webos-mode";
 // Skins: how the app looks. A skin is a set of color tokens (the CSS
 // variables every panel uses), a corner radius, a font, and optionally a
 // suggested model backdrop. Built-ins live here; your own are saved as
@@ -199,7 +200,8 @@ export function isDark(color: string) {
 export const store = {
   get(key: string): string | null {
     try {
-      return preferences().getItem(key);
+      const scoped = appearanceStorage(key);
+      return (scoped ? scoped.storage.getItem(scoped.key) : null) ?? preferences().getItem(key);
     } catch {
       return null;
     }
@@ -207,6 +209,8 @@ export const store = {
   set(key: string, v: string) {
     try {
       preferences().setItem(key, v);
+      const scoped = appearanceStorage(key);
+      scoped?.storage.setItem(scoped.key, v);
     } catch {
       /* private window: just not remembered */
     }

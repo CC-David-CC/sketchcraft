@@ -12,3 +12,15 @@ const temporary: Storage = {
   clear() { entries.clear(); }
 };
 export function preferences() { return hosted ? temporary : globalThis.localStorage; }
+
+
+const appearanceKeys = new Set(["sketchcraft.skin", "sketchcraft.skinData", "sketchcraft.layout"]);
+
+/** Only the appearance choices use the profile that the same-origin Desktop supplies. */
+export function appearanceStorage(key: string): { storage: Storage; key: string } | null {
+  if (!hosted || !appearanceKeys.has(key)) return null;
+  const profile = new URLSearchParams(window.location.search).get("profile") ?? "";
+  if (!/^(?:(?:user|anon):)?[a-f0-9-]{36}$/i.test(profile)) return null;
+  const storage = profile.startsWith("user:") ? window.localStorage : window.sessionStorage;
+  return { storage, key: `webos.${profile}.${key}` };
+}

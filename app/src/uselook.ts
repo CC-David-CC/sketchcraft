@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { applySkin, readSkin, SKINS, store, type Skin } from "./skins";
 import { cleanEdits, toolAfterSwitch, WORKSPACES, withEdits, type Layout, type LeftTab, type WorkspaceEdits, type WorkspaceId } from "./workspace";
 import type { Styles, Tool } from "./Viewport";
+import { hosted } from "./webos-mode";
 
 /** the skin you wore last time (a built-in by id, or a saved one by its data) */
-function rememberedSkin(): Skin {
+function rememberedSkin(): Skin | null {
   const id = store.get("sketchcraft.skin");
   const built = SKINS.find((s) => s.id === id);
   if (built) return built;
@@ -16,7 +17,7 @@ function rememberedSkin(): Skin {
   } catch {
     /* fall through */
   }
-  return SKINS[0];
+  return null;
 }
 function rememberedEdits(): Partial<Record<WorkspaceId, WorkspaceEdits>> {
   try {
@@ -35,7 +36,12 @@ export function useLook({ tool, chooseTool, setStyles, setTab }: {
   setTab: (t: Tab) => void;
 }) {
   // skin and workspace, remembered between launches
-  const [skin, setSkinState] = useState<Skin>(rememberedSkin);
+  const [skin, setSkinState] = useState<Skin>(() => {
+    const saved = rememberedSkin();
+    if (saved) return saved;
+    const dark = hosted && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return (dark ? SKINS.find((s) => s.id === "midnight") : undefined) ?? SKINS[0];
+  });
   useEffect(() => applySkin(skin), [skin]);
   const wearSkin = (s: Skin, useBackdrop: boolean) => {
     setSkinState(s);
@@ -49,7 +55,7 @@ export function useLook({ tool, chooseTool, setStyles, setTab }: {
   const [wsEdits, setWsEdits] = useState(rememberedEdits);
   const [layout, setLayoutState] = useState<Layout>(() => {
     const v = store.get("sketchcraft.layout");
-    return v === "classic" || v === "floating" || v === "side" ? v : (rememberedSkin().layout ?? "classic");
+    return v === "classic" || v === "floating" || v === "side" ? v : (rememberedSkin()?.layout ?? "classic");
   });
   const setLayout = (l: Layout) => {
     setLayoutState(l);
