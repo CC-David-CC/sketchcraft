@@ -48,7 +48,7 @@ Tested in Chrome 158.0.8127.92 at 411 CSS pixels in portrait.
 | Run a desktop plugin | Standalone | Standalone |
 | Restore a native backup | Standalone | Standalone |
 
-The core portrait workflow includes six of the eighteen rows. Desktop
+The core portrait workflow passed five of the eighteen rows plus Fit. Desktop
 Chromium 158.0.8127.36 passed eleven. Desktop parity remains in progress.
 The emulated 820 × 1050 touch tablet passed rectangle, editable reopen,
 Push / Pull, and save in place and kept the app bar available.
