@@ -1495,12 +1495,15 @@ export default function Viewport(props: Props) {
 
   function fitTo(b: THREE.Box3) {
     const T = t.current;
-    if (!T) return;
+    if (!T || T.persp.aspect <= 0) return;
     const c = b.getCenter(new THREE.Vector3());
     const rad = Math.max(b.getSize(new THREE.Vector3()).length() / 2, 1.5);
     const dir = T.camera.position.clone().sub(T.controls.target).normalize();
+    const halfVertical = THREE.MathUtils.degToRad(T.persp.fov / 2);
+    const halfHorizontal = Math.atan(Math.tan(halfVertical) * T.persp.aspect);
+    const distance = (rad / Math.sin(Math.min(halfVertical, halfHorizontal))) * 1.05;
     T.controls.target.copy(c);
-    T.persp.position.copy(c.clone().addScaledVector(dir, (rad / Math.sin(THREE.MathUtils.degToRad(T.persp.fov / 2))) * 1.05));
+    T.persp.position.copy(c.clone().addScaledVector(dir, distance));
     if (T.camera === T.ortho) syncOrtho(true);
   }
 
