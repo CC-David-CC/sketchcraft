@@ -5,6 +5,7 @@ import type { Reply, Scene } from "./engine";
 interface NativeModel {
   open(bytes: Uint8Array): void;
   capture(): Uint8Array;
+  export_stl(): Uint8Array<ArrayBuffer>;
   revision(): string;
   in_batch(): boolean;
   scene(): string;
@@ -90,6 +91,25 @@ function capture(path: string, kind: string, fields: Packet = {}) {
   pending = save;
   post(kind, {...fields, ...save, outcome:"captured"}, bytes);
   publish();
+}
+
+export function downloadModelStl(name: string) {
+  if (!model || !documentId || busy() || stopped() || unfinished()) {
+    throw Error("Finish the current model edit before exporting.");
+  }
+  const bytes = model.export_stl();
+  const url = URL.createObjectURL(new Blob([bytes], { type: "model/stl" }));
+  const link = document.createElement("a");
+  try {
+    link.href = url;
+    link.download = name;
+    document.body.append(link);
+    link.click();
+  } finally {
+    link.remove();
+    // Give the browser time to acquire the download URL after the click.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 }
 
 export function fileAction(action: "new" | "open" | "save" | "saveAs") {

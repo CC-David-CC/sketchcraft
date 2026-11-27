@@ -458,6 +458,11 @@ fn glb_stl_and_obj_round_trip() {
     let r = run(&mut e, json!({"cmd":"export_stl","path":p("m.stl"),"scale":1000}));
     let stl = std::fs::read(p("m.stl")).unwrap();
     assert_eq!(stl.len(), 84 + 50 * r["triangles"].as_u64().unwrap() as usize);
+    assert_eq!(
+        sketchcraft::export::binary_stl(&e.model, 1000.0, stl.len()).unwrap(),
+        stl,
+    );
+    assert!(sketchcraft::export::binary_stl(&e.model, 1000.0, stl.len() - 1).is_err());
     run(&mut e, json!({"cmd":"export_obj","path":p("m.obj")}));
     let mut e2 = Engine::new();
     let r = run(&mut e2, json!({"cmd":"import_obj","path":p("m.obj"),"up":"z"}));

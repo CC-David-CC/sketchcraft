@@ -44,7 +44,6 @@ export function FileMenu({ file, section, plugins, livePlugins, setPlugins, runP
           <button {...standalone} onClick={file.import}>Import SketchUp, CAD or OBJ… <kbd>⌘I</kbd></button>
           <button {...standalone} onClick={() => fileRef.current?.click()}>Import from browser upload…</button>
           <button
-            {...standalone}
             className="submenu-btn"
             aria-expanded={exportOpen}
             onClick={(e) => {
@@ -54,7 +53,12 @@ export function FileMenu({ file, section, plugins, livePlugins, setPlugins, runP
           >
             Export <span className="caret">{exportOpen ? "▾" : "▸"}</span>
           </button>
-          {exportOpen && (
+          {exportOpen && hosted && (
+            <div className="submenu">
+              <button onClick={() => file.export("stl")}>Download STL (mm)…</button>
+            </div>
+          )}
+          {exportOpen && !hosted && (
             <div className="submenu">
               <button onClick={() => file.export("glb")}>glTF (.glb)…</button>
               <button onClick={() => file.export("obj")}>OBJ…</button>

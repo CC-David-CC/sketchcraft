@@ -1,4 +1,4 @@
-import { fileAction } from "./webos-account";
+import { downloadModelStl, fileAction } from "./webos-account";
 import { hosted, preferences } from "./webos-mode";
 // File actions: New, Open, Save, the imports and the exports. Each runs engine commands and
 // says what happened.
@@ -38,7 +38,7 @@ function importedSkips(r: Reply): string {
 }
 
 /** The model's name without its folder or extension (what a saved file is called after). */
-const modelBase = (file: string | null) => (file?.split("/").pop() ?? "model").replace(/\.sketchcraft$/, "");
+const modelBase = (file: string | null) => (file?.split("/").pop() ?? "model").replace(/\.sketchcraft$/i, "");
 
 export function useFileActions({ run, say, refresh, api, scene, figure, currentFile, setCurrentFile, setSel }: {
   run: (cmd: Record<string, unknown>) => Promise<Reply>;
@@ -188,6 +188,17 @@ export function useFileActions({ run, say, refresh, api, scene, figure, currentF
     },
     export: async (kind: "obj" | "glb" | "stl" | "dae" | "dxf" | "dwg" | "pdf" | "ifc") => {
       const base = modelBase(currentFile);
+      if (hosted) {
+        if (kind !== "stl") return say("This format requires standalone SketchCraft.", true);
+        const filename = `${base}.stl`;
+        try {
+          downloadModelStl(filename);
+          say(`Downloading ${filename}…`);
+        } catch (error) {
+          say(error instanceof Error ? error.message : String(error), true);
+        }
+        return;
+      }
       const path = await pickSave(`${base}.${kind}`, kind, kind.toUpperCase());
       if (!path) return;
       const cmd =

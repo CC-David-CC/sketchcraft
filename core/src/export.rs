@@ -264,29 +264,46 @@ pub fn write_glb(m: &Model, path: &str) -> Result<usize> {
     Ok(tris)
 }
 
-/// Binary STL for 3D printing (meters; most slicers want mm, so pass scale 1000).
-pub fn write_stl(m: &Model, path: &str, scale: f64) -> Result<usize> {
-    let mut tris: Vec<([f32; 3], [[f32; 3]; 3])> = Vec::new();
-    for f in m.world_faces() {
-        let n = f.normal;
-        for t in geom::triangulate(&f.outer, &f.holes, n) {
-            let v = t.map(|p| [(p.x * scale) as f32, (p.y * scale) as f32, (p.z * scale) as f32]);
-            tris.push(([n.x as f32, n.y as f32, n.z as f32], v));
-        }
-    }
-    let mut out = vec![0u8; 80];
+/// Encode binary STL. The model is stored in metres and the scale is typically
+/// 1000 for millimetres. The byte limit lets browser callers bound the export.
+pub fn binary_stl(m: &Model, scale: f64, limit: usize) -> Result<Vec<u8>> {
+    const HEADER_BYTES: usize = 84;
+    const TRIANGLE_BYTES: usize = 50;
+    anyhow::ensure!(limit >= HEADER_BYTES, "The STL exceeds the export size limit.");
+    let mut out = vec![0u8; HEADER_BYTES];
     let header = b"SketchCraft binary STL";
     out[..header.len()].copy_from_slice(header);
-    out.extend_from_slice(&(tris.len() as u32).to_le_bytes());
-    for (n, v) in &tris {
-        for x in n.iter().chain(v.iter().flatten()) {
-            out.extend_from_slice(&x.to_le_bytes());
+    let mut count = 0u32;
+    for face in m.world_faces() {
+        let normal = face.normal;
+        for triangle in geom::triangulate(&face.outer, &face.holes, normal) {
+            anyhow::ensure!(
+                limit - out.len() >= TRIANGLE_BYTES && count < u32::MAX,
+                "The STL exceeds the export size limit."
+            );
+            for component in [normal.x, normal.y, normal.z] {
+                out.extend_from_slice(&(component as f32).to_le_bytes());
+            }
+            for point in triangle {
+                for component in [point.x, point.y, point.z] {
+                    out.extend_from_slice(&((component * scale) as f32).to_le_bytes());
+                }
+            }
+            out.extend_from_slice(&0u16.to_le_bytes());
+            count += 1;
         }
-        out.extend_from_slice(&0u16.to_le_bytes());
     }
+    out[80..HEADER_BYTES].copy_from_slice(&count.to_le_bytes());
+    Ok(out)
+}
+
+/// Save a native STL file and return the number of triangles written.
+pub fn write_stl(m: &Model, path: &str, scale: f64) -> Result<usize> {
+    let bytes = binary_stl(m, scale, usize::MAX)?;
+    let count = u32::from_le_bytes(bytes[80..84].try_into().unwrap());
     if let Some(dir) = Path::new(path).parent() {
         std::fs::create_dir_all(dir).ok();
     }
-    std::fs::write(path, out)?;
-    Ok(tris.len())
+    std::fs::write(path, bytes)?;
+    Ok(count as usize)
 }

@@ -1,7 +1,7 @@
 //! The account editor owns one native geometry engine per browser window.
 use serde_json::{json, Value};
 use sketchcraft::{
-    format,
+    export, format,
     policy::{self, Caller, Workspace},
     scene, Engine,
 };
@@ -48,6 +48,18 @@ impl BrowserModel {
         let bytes = format::to_vec(&self.engine.model).map_err(|e| e.to_string())?;
         if bytes.len() > MAX_FILE {
             return Err("This model exceeds the 32 MiB account editor limit.".into());
+        }
+        Ok(bytes)
+    }
+
+    pub fn export_stl(&self) -> Result<Vec<u8>, String> {
+        if self.engine.in_batch() {
+            return Err("Finish the current model edit before exporting.".into());
+        }
+        let bytes =
+            export::binary_stl(&self.engine.model, 1000.0, MAX_FILE).map_err(|e| e.to_string())?;
+        if bytes.len() == 84 {
+            return Err("Draw a face before exporting an STL.".into());
         }
         Ok(bytes)
     }
