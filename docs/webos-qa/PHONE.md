@@ -25,6 +25,14 @@ Tested in Chrome 158.0.8127.92 at 411 CSS pixels in portrait.
 
 ![Saved six-face solid after Push / Pull on the Galaxy S10+](s10-solid.png)
 
+6. Use **File → Export → Download STL (mm)…**. Chrome saves the STL in its
+   Downloads location with the model name. The editable project remains in
+   My files. The test STL has 12 triangles, the same bounds as the project,
+   and a height of 200 mm. An empty project displays a message instead of
+   downloading an empty file.
+
+![Galaxy S10+ after downloading the checked STL](s10-stl.png)
+
 ## Workflow coverage
 
 | Workflow | S10+ portrait | Desktop Chromium |
@@ -40,22 +48,23 @@ Tested in Chrome 158.0.8127.92 at 411 CSS pixels in portrait.
 | Open a saved project through the app picker | Open | Passed |
 | Open an editable project through My files | Passed | Passed |
 | Reopen server-backed work from a fresh sign-in | Open | Passed |
-| Make and edit groups or components | Open | Open |
-| Apply materials and appearance styles | Open | Open |
-| Lay out a drawing sheet and add a model view | Open | Open |
+| Organize faces into a group or component | Open | Grouped six faces and saved |
+| Apply materials and appearance styles | Open | Swatch and Blueprint theme passed |
+| Lay out a drawing sheet and add a model view | Open | Saved an A3 sheet with a 1:50 plan view |
 | Open external CAD or SketchUp files | Standalone | Standalone |
-| Export model or drawing formats | Standalone | Standalone |
+| Export a model or drawing | STL passed | STL passed |
 | Run a desktop plugin | Standalone | Standalone |
 | Restore a native backup | Standalone | Standalone |
 
-The core portrait workflow passed five of the eighteen rows plus Fit. Desktop
-Chromium 158.0.8127.36 passed eleven. Desktop parity remains in progress.
+The core portrait workflow passed six of eighteen rows plus Fit. Desktop
+Chromium 158.0.8127.36 passed fifteen of eighteen. Desktop-only formats
+such as OBJ, DXF and PDF still require standalone SketchCraft.
 The emulated 820 × 1050 touch tablet passed rectangle, editable reopen,
 Push / Pull, and save in place and kept the app bar available.
 
 The browser UI builds from `app/` with `npm ci` then
-`npm run build -- --mode webos --base ./`. The camera fix uses the existing
-verified Rust/WASM geometry package. Run `npm run check` and `npm test` in
-`app/` for the app-level tests. The hosted viewer is
-`bdeb4cb0b66ceba720067066f84dc38af97ed612290e969a42ed2d8921aaa426` with
-SketchCraft source `b752e9d03967bca49cfe9417297942f6b9a101bf`.
+`npm run build -- --mode webos --base ./`. The Rust 1.99.1 browser engine reuses the
+standalone binary STL encoder and limits browser output to 32 MiB. Build the
+complete package with `web/package.sh` using wasm-bindgen 0.2.130. All 282
+app tests and 94 native modeling tests passed. The hosted viewer is
+`b3d7562df2dc94f19abbd24d0c001d9fd04592b628ed847dfd16eb7c820ae9e6` with SketchCraft source `30c85a691c54f6906a947d36e130fb7d3ea8e89e`.
